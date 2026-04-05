@@ -1,0 +1,26 @@
+CREATE DATABASE IF NOT EXISTS finance;
+USE finance;
+
+CREATE TABLE IF NOT EXISTS stock_prices_1m (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  ticker VARCHAR(20) NOT NULL,
+  datetime_utc DATETIME NOT NULL,
+
+  -- Raw market data
+  open_price DOUBLE,
+  high_price DOUBLE,
+  low_price DOUBLE,
+  close_price DOUBLE,
+  volume BIGINT );
+
+ALTER TABLE stock_prices_1m
+  ADD COLUMN IF NOT EXISTS price_gain DOUBLE NULL,
+  ADD COLUMN IF NOT EXISTS return_pct DOUBLE NULL,
+  ADD COLUMN IF NOT EXISTS log_return DOUBLE NULL,
+  ADD COLUMN IF NOT EXISTS realized_vol_20 DOUBLE NULL,
+  ADD COLUMN IF NOT EXISTS realized_vol_60 DOUBLE NULL,
+  ADD COLUMN IF NOT EXISTS cumulative_gain DOUBLE NULL,
+  ADD COLUMN IF NOT EXISTS volume_zscore DOUBLE NULL,
+  ADD COLUMN IF NOT EXISTS unusual_move_flag TINYINT(1) NULL,
+  ADD COLUMN IF NOT EXISTS unusual_volume_flag TINYINT(1) NULL,
+  ADD COLUMN IF NOT EXISTS unusual_vol_flag TINYINT(1) NULL;

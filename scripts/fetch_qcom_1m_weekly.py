@@ -4,7 +4,7 @@ import requests
 import pandas as pd
 import mysql.connector
 from datetime import datetime, timedelta, timezone
-
+from transform_qcom_1m import add_transformed_columns
 TICKER = os.getenv("TICKER", "QCOM")
 DAYS_BACK = int(os.getenv("DAYS_BACK", "8"))
 SLEEP_SEC = float(os.getenv("SLEEP_SEC", "1.0"))
@@ -14,6 +14,15 @@ DB_NAME = os.getenv("DB_NAME", "finance")
 DB_USER = os.getenv("DB_USER", "stockuser")
 DB_PASS = os.getenv("DB_PASS", "stockPass")
 
+def safe_float(value):
+    if value is None or pd.isna(value):
+        return None
+    return float(value)
+
+def safe_int(value):
+    if value is None or pd.isna(value):
+        return None
+    return int(value)
 
 def yahoo_1m_chunk(ticker: str, start_dt_utc: datetime, end_dt_utc: datetime, session=None) -> pd.DataFrame:
     url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
@@ -72,59 +81,83 @@ def save_to_database(df: pd.DataFrame, ticker: str):
 
     sql = """
     INSERT INTO stock_prices_1m
-    (ticker, datetime_utc, open_price, high_price, low_price, close_price, volume)
-    VALUES (%s, %s, %s, %s, %s, %s, %s)
+    (
+        ticker, datetime_utc,
+        open_price, high_price, low_price, close_price, volume,
+        price_gain, return_pct, log_return,
+        realized_vol_20, realized_vol_60,
+        cumulative_gain, volume_zscore,
+        unusual_move_flag, unusual_volume_flag, unusual_vol_flag
+    )
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     ON DUPLICATE KEY UPDATE
-      open_price = VALUES(open_price),
-      high_price = VALUES(high_price),
-      low_price = VALUES(low_price),
-      close_price = VALUES(close_price),
-      volume = VALUES(volume)
+        open_price = VALUES(open_price),
+        high_price = VALUES(high_price),
+        low_price = VALUES(low_price),
+        close_price = VALUES(close_price),
+        volume = VALUES(volume),
+        price_gain = VALUES(price_gain),
+        return_pct = VALUES(return_pct),
+        log_return = VALUES(log_return),
+        realized_vol_20 = VALUES(realized_vol_20),
+        realized_vol_60 = VALUES(realized_vol_60),
+        cumulative_gain = VALUES(cumulative_gain),
+        volume_zscore = VALUES(volume_zscore),
+        unusual_move_flag = VALUES(unusual_move_flag),
+        unusual_volume_flag = VALUES(unusual_volume_flag),
+        unusual_vol_flag = VALUES(unusual_vol_flag)
     """
-
-    rows_inserted = 0
-
+    rows_written = 0
     for _, row in df.iterrows():
         dt_value = row["datetime_utc"].to_pydatetime().replace(tzinfo=None)
+
         values = (
             ticker,
             dt_value,
-            None if pd.isna(row["open_price"]) else float(row["open_price"]),
-            None if pd.isna(row["high_price"]) else float(row["high_price"]),
-            None if pd.isna(row["low_price"]) else float(row["low_price"]),
-            None if pd.isna(row["close_price"]) else float(row["close_price"]),
-            None if pd.isna(row["volume"]) else int(row["volume"]),
+            safe_float(row["open_price"]),
+            safe_float(row["high_price"]),
+            safe_float(row["low_price"]),
+            safe_float(row["close_price"]),
+            safe_int(row["volume"]),
+            safe_float(row["price_gain"]),
+            safe_float(row["return_pct"]),
+            safe_float(row["log_return"]),
+            safe_float(row["realized_vol_20"]),
+            safe_float(row["realized_vol_60"]),
+            safe_float(row["cumulative_gain"]),
+            safe_float(row["volume_zscore"]),
+            safe_int(row["unusual_move_flag"]),
+            safe_int(row["unusual_volume_flag"]),
+            safe_int(row["unusual_vol_flag"]),
         )
+
         cur.execute(sql, values)
-        rows_inserted += 1
+        rows_written += 1
 
     conn.commit()
     cur.close()
     conn.close()
-
-    print(f"Inserted/updated rows: {rows_inserted}")
-
+    print(f"Inserted/updated rows: {rows_written}")
 
 def main():
     now = datetime.now(timezone.utc)
     start = now - timedelta(days=DAYS_BACK)
 
     s = requests.Session()
-    print(f"Fetching {TICKER} 1m data: {start.isoformat()} -> {now.isoformat()}")
+    print(f"Fetching {TICKER} data...")
 
-    new_df = yahoo_1m_chunk(TICKER, start, now, session=s)
+    df = yahoo_1m_chunk(TICKER, start, now, session=s)
     time.sleep(SLEEP_SEC)
 
-    if new_df.empty:
-        print("No rows fetched from Yahoo Finance.")
+    if df.empty:
+        print("No data found")
         return
 
-    new_df = new_df.dropna(subset=["datetime_utc"])
-    new_df = new_df.sort_values("datetime_utc").drop_duplicates(subset=["datetime_utc"], keep="last").reset_index(drop=True)
+    df = df.sort_values("datetime_utc").drop_duplicates(subset=["datetime_utc"], keep="last").reset_index(drop=True)
+    df = add_transformed_columns(df)
+    save_to_database(df, TICKER)
 
-    save_to_database(new_df, TICKER)
-
-    print("Done.")
+    print("Done")
 
 
 if __name__ == "__main__":

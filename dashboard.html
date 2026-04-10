@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QCOM Market Data Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121a2f;
+      --text: #eef2ff;
+      --muted: #aab5d1;
+      --accent: #6ea8fe;
+      --accent2: #77e4c8;
+      --warn: #ffd479;
+      --danger: #ff8f8f;
+      --border: rgba(255,255,255,0.08);
+      --shadow: 0 18px 50px rgba(0,0,0,0.25);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(110,168,254,0.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(119,228,200,0.12), transparent 24%),
+        linear-gradient(180deg, #0a0f1d 0%, #0f172a 100%);
+    }
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 28px 20px 48px;
+    }
+    .hero, .chart-grid {
+      display: grid;
+      gap: 18px;
+      grid-template-columns: 1.5fr 1fr;
+      margin-bottom: 20px;
+    }
+    .card {
+      background: rgba(18,26,47,0.9);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 22px;
+      backdrop-filter: blur(8px);
+    }
+    .hero h1 {
+      margin: 0 0 10px;
+      font-size: 40px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+    }
+    .subtitle {
+      color: var(--muted);
+      margin: 0 0 18px;
+      line-height: 1.6;
+      font-size: 16px;
+    }
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .pill {
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.05);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .mini-title {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+    .big-number {
+      font-size: 30px;
+      font-weight: 800;
+      margin: 0;
+    }
+    .small-muted {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 6px;
+    }
+    .grid-cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .metric-label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .metric-value {
+      font-size: 28px;
+      font-weight: 800;
+      margin: 0;
+    }
+    .metric-sub {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 8px;
+    }
+    .section-title {
+      font-size: 22px;
+      font-weight: 800;
+      margin: 0 0 14px;
+      letter-spacing: -0.02em;
+    }
+    .chart-card canvas {
+      width: 100% !important;
+      height: 280px !important;
+    }
+    .wide-card {
+      margin-bottom: 20px;
+    }
+    .transform-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .transform-item {
+      padding: 16px;
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04);
+    }
+    .transform-item strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+    .transform-item span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .table-wrap {
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      min-width: 900px;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      white-space: nowrap;
+      font-size: 13px;
+    }
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      background: rgba(18,26,47,0.96);
+    }
+    .flag {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .flag-good { background: rgba(119,228,200,0.15); color: var(--accent2); }
+    .flag-warn { background: rgba(255,212,121,0.15); color: var(--warn); }
+    .flag-danger { background: rgba(255,143,143,0.15); color: var(--danger); }
+    .footer-note {
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+      margin-top: 8px;
+    }
+    @media (max-width: 1100px) {
+      .hero, .chart-grid { grid-template-columns: 1fr; }
+      .grid-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .transform-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 700px) {
+      .grid-cards, .transform-grid { grid-template-columns: 1fr; }
+      .hero h1 { font-size: 30px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <section class="hero">
+      <div class="card">
+        <h1>QCOM Market Data Dashboard</h1>
+        <p class="subtitle">
+          Minute-level QCOM stock data collected over time, stored in SQL, transformed into returns,
+          volatility, monthly summaries, and unusual behavior signals.
+        </p>
+        <div class="pill-row">
+          <div class="pill">Data Start: {{ dataset_summary.start_date }}</div>
+          <div class="pill">Data End: {{ dataset_summary.end_date }}</div>
+          <div class="pill">Rows Collected: {{ dataset_summary.total_rows }}</div>
+          <div class="pill">Months Summarized: {{ month_count.total_months }}</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="mini-title">Latest Close</div>
+        <div class="big-number">{{ "%.2f"|format(latest_close or 0) }}</div>
+        <div class="small-muted">Latest timestamp: {{ latest_timestamp }}</div>
+
+        <div style="height:18px;"></div>
+
+        <div class="mini-title">Latest Realized Volatility</div>
+        <div class="big-number">{{ "%.3f"|format(latest_vol20 or 0) }}</div>
+        <div class="small-muted">20-period realized volatility</div>
+      </div>
+    </section>
+
+    <section class="grid-cards">
+      <div class="card">
+        <div class="metric-label">Dataset Rows</div>
+        <div class="metric-value">{{ dataset_summary.total_rows }}</div>
+        <div class="metric-sub">Minute-level observations stored in SQL</div>
+      </div>
+      <div class="card">
+        <div class="metric-label">Collection Period</div>
+        <div class="metric-value">{{ month_count.total_months }}</div>
+        <div class="metric-sub">Months currently summarized</div>
+      </div>
+      <div class="card">
+        <div class="metric-label">Move Flags</div>
+        <div class="metric-value">{{ flag_summary.total_move_flags or 0 }}</div>
+        <div class="metric-sub">Rows with unusual price movement</div>
+      </div>
+      <div class="card">
+        <div class="metric-label">Volume + Vol Flags</div>
+        <div class="metric-value">{{ (flag_summary.total_volume_flags or 0) + (flag_summary.total_vol_flags or 0) }}</div>
+        <div class="metric-sub">Rows with unusual volume or volatility</div>
+      </div>
+    </section>
+
+    <section class="chart-grid">
+      <div class="card chart-card">
+        <div class="section-title">Daily Close Price With Flagged Move Days</div>
+        <canvas id="priceChart"></canvas>
+      </div>
+      <div class="card chart-card">
+        <div class="section-title">Daily Volatility With Flagged Vol Days</div>
+        <canvas id="volChart"></canvas>
+      </div>
+    </section>
+
+    <section class="card chart-card wide-card">
+      <div class="section-title">Daily Volume With Flagged Spike Days</div>
+      <canvas id="volumeChart"></canvas>
+    </section>
+
+    <section class="card chart-card wide-card">
+      <div class="section-title">Monthly Gain / Loss</div>
+      <canvas id="monthlyGainChart"></canvas>
+    </section>
+
+    <section class="card wide-card">
+      <div class="section-title">Transformations Performed</div>
+      <div class="transform-grid">
+        <div class="transform-item"><strong>Price Gain</strong><span>Difference between current close and previous close.</span></div>
+        <div class="transform-item"><strong>Return %</strong><span>Minute-to-minute percentage price change.</span></div>
+        <div class="transform-item"><strong>Log Return</strong><span>Minute-level log return for volatility analysis.</span></div>
+        <div class="transform-item"><strong>Realized Vol 20</strong><span>Rolling standard deviation-based volatility over 20 periods.</span></div>
+        <div class="transform-item"><strong>Realized Vol 60</strong><span>Rolling standard deviation-based volatility over 60 periods.</span></div>
+        <div class="transform-item"><strong>Cumulative Gain</strong><span>Net gain from the start of the fetched period.</span></div>
+        <div class="transform-item"><strong>Volume Z-Score</strong><span>Measures how unusual current volume is relative to recent volume.</span></div>
+        <div class="transform-item"><strong>Unusual Move Flag</strong><span>Highlights strong price movement events.</span></div>
+        <div class="transform-item"><strong>Unusual Volume Flag</strong><span>Highlights strong volume spike events.</span></div>
+        <div class="transform-item"><strong>Unusual Vol Flag</strong><span>Highlights unusually high realized volatility events.</span></div>
+      </div>
+    </section>
+
+    <section class="card wide-card">
+      <div class="section-title">Monthly Summary</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th>Low</th>
+              <th>High</th>
+              <th>Median Close</th>
+              <th>Gain/Loss</th>
+              <th>Gain/Loss %</th>
+              <th>Avg Vol 20</th>
+              <th>Std Dev Log Return</th>
+              <th>Move Flags</th>
+              <th>Volume Flags</th>
+              <th>Vol Flags</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in monthly_rows %}
+            <tr>
+              <td>{{ row.month_key }}</td>
+              <td>{{ "%.2f"|format(row.monthly_low or 0) }}</td>
+              <td>{{ "%.2f"|format(row.monthly_high or 0) }}</td>
+              <td>{{ "%.2f"|format(row.monthly_median_close or 0) }}</td>
+              <td>{{ "%.2f"|format(row.monthly_gain_loss or 0) }}</td>
+              <td>{{ "%.2f"|format(row.monthly_gain_loss_pct or 0) }}</td>
+              <td>{{ "%.3f"|format(row.avg_realized_vol_20 or 0) }}</td>
+              <td>{{ "%.4f"|format(row.stddev_log_return or 0) }}</td>
+              <td><span class="flag flag-danger">{{ row.move_flag_count or 0 }}</span></td>
+              <td><span class="flag flag-warn">{{ row.volume_flag_count or 0 }}</span></td>
+              <td><span class="flag flag-good">{{ row.vol_flag_count or 0 }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card wide-card">
+      <div class="section-title">Recent Minute-Level Rows</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>DateTime</th>
+              <th>Close</th>
+              <th>Volume</th>
+              <th>Return %</th>
+              <th>Log Return</th>
+              <th>Vol 20</th>
+              <th>Vol 60</th>
+              <th>Move</th>
+              <th>Volume Spike</th>
+              <th>Vol Spike</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in recent_rows %}
+            <tr>
+              <td>{{ row.datetime_utc }}</td>
+              <td>{{ "%.2f"|format(row.close_price or 0) }}</td>
+              <td>{{ row.volume or 0 }}</td>
+              <td>{{ "%.4f"|format(row.return_pct or 0) }}</td>
+              <td>{{ "%.4f"|format(row.log_return or 0) }}</td>
+              <td>{{ "%.3f"|format(row.realized_vol_20 or 0) }}</td>
+              <td>{{ "%.3f"|format(row.realized_vol_60 or 0) }}</td>
+              <td>{% if row.unusual_move_flag %}<span class="flag flag-danger">Yes</span>{% else %}<span class="flag flag-good">No</span>{% endif %}</td>
+              <td>{% if row.unusual_volume_flag %}<span class="flag flag-warn">Yes</span>{% else %}<span class="flag flag-good">No</span>{% endif %}</td>
+              <td>{% if row.unusual_vol_flag %}<span class="flag flag-danger">Yes</span>{% else %}<span class="flag flag-good">No</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="footer-note">
+      This dashboard presents QCOM data collected over time and transformed into returns, volatility, monthly summaries, and unusual behavior signals.
+    </div>
+  </div>
+
+  <script>
+    const chartLabels = [{% for row in chart_rows %}"{{ row.chart_date }}",{% endfor %}];
+    const priceData = [{% for row in chart_rows %}{{ row.close_price or 0 }},{% endfor %}];
+    const vol20Data = [{% for row in chart_rows %}{{ row.realized_vol_20 or 0 }},{% endfor %}];
+    const vol60Data = [{% for row in chart_rows %}{{ row.realized_vol_60 or 0 }},{% endfor %}];
+    const volumeData = [{% for row in chart_rows %}{{ row.volume or 0 }},{% endfor %}];
+
+    const moveFlagPoints = [{% for row in chart_rows %}{% if row.unusual_move_flag %}{{ row.close_price or 0 }},{% else %}null,{% endif %}{% endfor %}];
+    const volFlagPoints = [{% for row in chart_rows %}{% if row.unusual_vol_flag %}{{ row.realized_vol_20 or 0 }},{% else %}null,{% endif %}{% endfor %}];
+    const volumeFlagPoints = [{% for row in chart_rows %}{% if row.unusual_volume_flag %}{{ row.volume or 0 }},{% else %}null,{% endif %}{% endfor %}];
+
+    const monthLabels = [{% for row in monthly_rows %}"{{ row.month_key }}",{% endfor %}];
+    const monthlyGainData = [{% for row in monthly_rows %}{{ row.monthly_gain_loss or 0 }},{% endfor %}];
+
+    new Chart(document.getElementById("priceChart"), {
+      type: "line",
+      data: {
+        labels: chartLabels,
+        datasets: [
+          {
+            label: "Daily Close",
+            data: priceData,
+            borderColor: "#6ea8fe",
+            backgroundColor: "rgba(110,168,254,0.12)",
+            fill: true,
+            tension: 0.25,
+            pointRadius: 2
+          },
+          {
+            label: "Flagged Move Day",
+            data: moveFlagPoints,
+            borderColor: "#ff8f8f",
+            backgroundColor: "#ff8f8f",
+            showLine: false,
+            pointRadius: 5,
+            pointHoverRadius: 6
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: "#eef2ff" } } },
+        scales: {
+          x: { ticks: { color: "#aab5d1", maxTicksLimit: 8 }, grid: { color: "rgba(255,255,255,0.05)" } },
+          y: { ticks: { color: "#aab5d1" }, grid: { color: "rgba(255,255,255,0.05)" } }
+        }
+      }
+    });
+
+    new Chart(document.getElementById("volChart"), {
+      type: "line",
+      data: {
+        labels: chartLabels,
+        datasets: [
+          {
+            label: "Avg Vol 20",
+            data: vol20Data,
+            borderColor: "#77e4c8",
+            fill: false,
+            tension: 0.25,
+            pointRadius: 2
+          },
+          {
+            label: "Avg Vol 60",
+            data: vol60Data,
+            borderColor: "#ffd479",
+            fill: false,
+            tension: 0.25,
+            pointRadius: 2
+          },
+          {
+            label: "Flagged Vol Day",
+            data: volFlagPoints,
+            borderColor: "#ff8f8f",
+            backgroundColor: "#ff8f8f",
+            showLine: false,
+            pointRadius: 5,
+            pointHoverRadius: 6
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: "#eef2ff" } } },
+        scales: {
+          x: { ticks: { color: "#aab5d1", maxTicksLimit: 8 }, grid: { color: "rgba(255,255,255,0.05)" } },
+          y: { ticks: { color: "#aab5d1" }, grid: { color: "rgba(255,255,255,0.05)" } }
+        }
+      }
+    });
+
+    new Chart(document.getElementById("volumeChart"), {
+      type: "bar",
+      data: {
+        labels: chartLabels,
+        datasets: [
+          {
+            label: "Daily Volume",
+            data: volumeData,
+            backgroundColor: "rgba(110,168,254,0.45)"
+          },
+          {
+            label: "Flagged Volume Day",
+            data: volumeFlagPoints,
+            type: "line",
+            borderColor: "#ffd479",
+            backgroundColor: "#ffd479",
+            showLine: false,
+            pointRadius: 5,
+            pointHoverRadius: 6
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: "#eef2ff" } } },
+        scales: {
+          x: { ticks: { color: "#aab5d1", maxTicksLimit: 8 }, grid: { color: "rgba(255,255,255,0.05)" } },
+          y: { ticks: { color: "#aab5d1" }, grid: { color: "rgba(255,255,255,0.05)" } }
+        }
+      }
+    });
+
+    new Chart(document.getElementById("monthlyGainChart"), {
+      type: "bar",
+      data: {
+        labels: monthLabels,
+        datasets: [{
+          label: "Monthly Gain / Loss",
+          data: monthlyGainData,
+          backgroundColor: [
+            "rgba(119,228,200,0.7)",
+            "rgba(255,143,143,0.7)",
+            "rgba(110,168,254,0.7)",
+            "rgba(255,212,121,0.7)"
+          ]
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: "#eef2ff" } } },
+        scales: {
+          x: { ticks: { color: "#aab5d1" }, grid: { color: "rgba(255,255,255,0.05)" } },
+          y: { ticks: { color: "#aab5d1" }, grid: { color: "rgba(255,255,255,0.05)" } }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
